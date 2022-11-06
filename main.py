@@ -1,8 +1,6 @@
-import os
+from datetime import datetime as dt
 
-import pywhatkit as whatsapp
-
-numb = str(os.environ["number"])
-
-whatsapp.sendwhatmsg(numb, "Message 2", 18, 55, 15, True, 2)
+#import pywhatkit as whatsapp
+#numb = "+49 1575 XXXXXXX"
+#whatsapp.sendwhatmsg(numb, "Message 2", dt.now().hour, dt.now().minute+1)
 
