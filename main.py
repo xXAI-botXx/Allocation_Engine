@@ -13,32 +13,33 @@ from cryptography.fernet import Fernet
 ################
 HEX = "0123456789ABCDEF"
 LENGTH = 5
-fernet = Fernet(os.environ['crypt-key'])
+#fernet = Fernet(os.environ['crypt-key'])
+fernet = Fernet(os.getenv('crypt-key'))
 
 
 ################
 # Functions
 ################
-def check_and_take_access_token(check_code:str):
+def check_and_take_access_token(check_code: str):
     # load tokens
     with open('access_token.txt', "r") as f:
         lines = f.read()
     raw_access_token = str(fernet.decrypt(lines).decode())
-    
+
     # transform tokens in dict
     access_token = raw_access_token.split(",")
     if access_token[-1] == '':
         access_token = access_token[:-1]
-        
+
     result = dict()
     for i in access_token:
         result[i] = ""
-        
+
     if check_code in result.keys():
         del result[check_code]
         # save new tokens
         with open("./access_token.txt", "w") as f:
-            access_token = ','.join(list(result.keys()))+","
+            access_token = ','.join(list(result.keys())) + ","
             f.write(str(fernet.encrypt(access_token.encode()))[2:-1])
         return True
     else:
@@ -61,7 +62,8 @@ def get_allocations():
 
 def check_master():
     user_input = input("Type Password:")
-    if user_input == os.environ['Master-Password']:
+    #if user_input == os.environ['Master-Password']:
+    if user_input == os.getenv('Master-Password'):
         return True
     else:
         return False
@@ -98,7 +100,10 @@ def create_new_allocation():
             if user_input == "" or user_input == "exit":
                 break
             elif user_input == "family set":
-                for i in ['tobia', 'matteo', 'alex', 'rosa', 'niklas', 'luisa', 'sebi', 'alena']:
+                for i in [
+                        'tobia', 'matteo', 'alex', 'rosa', 'niklas', 'luisa',
+                        'sebi', 'alena'
+                ]:
                     names[i] = ""
                 break
             else:
@@ -117,16 +122,18 @@ def create_new_allocation():
         allocations = ""
         for key, value in names.items():
             allocations += f"{key}:{value},"
-            
+
         with open("./secret.txt", "w") as f:
             f.write(str(fernet.encrypt(allocations.encode()))[2:-1])
 
         input("\nIt's finished. Press enter to continue.")
 
+
 def remove_access_token():
     if check_master() == True:
         with open("access_token.txt", "w") as f:
             f.write(str(fernet.encrypt("".encode()))[2:-1])
+
 
 def show_access_token():
     if check_master() == True:
@@ -134,7 +141,6 @@ def show_access_token():
             access_token = f.read()
         access_token = str(fernet.decrypt(access_token).decode())
         print(access_token)
-        
 
 
 ################
@@ -155,7 +161,7 @@ while True:
     else:
         if check_and_take_access_token(user_input) == True:
             allocations = get_allocations()
-            
+
             is_false_name = True
             while is_false_name:
                 name = input("Gib deinen Vornamen ein:").lower()
