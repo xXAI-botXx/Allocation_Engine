@@ -1,20 +1,25 @@
-#from datetime import datetime as dt
-#import pywhatkit as whatsapp
-#numb = "+49 1575 XXXXXXX"
-#whatsapp.sendwhatmsg(numb, "Message 2", dt.now().hour, dt.now().minute+1)
-
 import os
 import sys
 import random
-from cryptography.fernet import Fernet
+from datetime import datetime as dt
+
+from replit import db
+
+# create db
+#db['password'] = ""
+#db['history'] = ""
+#db['access_token'] = []
+#db['allocations'] = []
+#exit()
 
 ################
 # Constants
 ################
 HEX = "0123456789ABCDEF"
 LENGTH = 5
-#fernet = Fernet(os.environ['crypt-key'])
-fernet = Fernet(os.getenv('crypt-key'))
+
+# load secrets
+password = db['password']
 
 
 ################
@@ -22,48 +27,25 @@ fernet = Fernet(os.getenv('crypt-key'))
 ################
 def check_and_take_access_token(check_code: str):
     # load tokens
-    with open('access_token.txt', "r") as f:
-        lines = f.read()
-    raw_access_token = str(fernet.decrypt(lines).decode())
+    access_token = db['access_token']
 
-    # transform tokens in dict
-    access_token = raw_access_token.split(",")
-    if access_token[-1] == '':
-        access_token = access_token[:-1]
-
-    result = dict()
-    for i in access_token:
-        result[i] = ""
-
-    if check_code in result.keys():
-        del result[check_code]
+    if check_code in access_token:
+        del access_token[access_token.index(check_code)]
         # save new tokens
-        with open("./access_token.txt", "w") as f:
-            access_token = ','.join(list(result.keys())) + ","
-            f.write(str(fernet.encrypt(access_token.encode()))[2:-1])
+        db['access_token'] = access_token
         return True
     else:
         return False
 
 
 def get_allocations():
-    with open('secret.txt') as f:
-        lines = f.read()
-    raw_allocations = str(fernet.decrypt(lines).decode())
-    elements_allocations = raw_allocations.split(",")
-    if elements_allocations[-1] == '':
-        elements_allocations = elements_allocations[:-1]
-    allocations = dict()
-    for i in elements_allocations:
-        key, value = i.split(":")
-        allocations[key] = value
-    return allocations
+    return db['allocations']
 
 
 def check_master():
     user_input = input("Type Password:")
     #if user_input == os.environ['Master-Password']:
-    if user_input == os.getenv('Master-Password'):
+    if user_input == password:
         return True
     else:
         return False
@@ -72,21 +54,18 @@ def check_master():
 def create_access_token():
     if check_master() == True:
         # get old codes
-        with open("access_token.txt", "r") as f:
-            access_token = f.read()
-        access_token = str(fernet.decrypt(access_token).decode())
+        access_token = db['access_token']
 
         # get new codes
         amount = int(input("Amount of access codes:"))
         print("The new access-codes are:")
         for i in range(amount):
             new_token = random.choices(HEX, k=LENGTH)
-            print(f"\n{''.join(new_token) + ','}")
-            access_token += ''.join(new_token) + ","
+            print(f"{''.join(new_token) + ','}")
+            access_token += [''.join(new_token)]
 
         # save all codes
-        with open("./access_token.txt", "w") as f:
-            f.write(str(fernet.encrypt(access_token.encode()))[2:-1])
+        db['access_token'] = access_token
 
         input("\nIt's finished. Press enter to continue.")
 
@@ -112,35 +91,57 @@ def create_new_allocation():
         giving = list(names.keys())
 
         # allocate names
-        for i in giving:
-            rand_ = random.choice(presenter)
-            while rand_ == i:
+        is_wrong_allocation = True
+        while is_wrong_allocation:
+            for i in giving:
                 rand_ = random.choice(presenter)
-            names[i] = presenter.pop(presenter.index(rand_))
+                #while rand_ == i:
+                #rand_ = random.choice(presenter)
+                names[i] = presenter.pop(presenter.index(rand_))
+            # check allocation
+            alright = True
+            keys = []
+            values = []
+            for key, value in names.items():
+                if key == value or key in keys or value in values:
+                    alright = False
+                    break
+
+                keys += [key]
+                values += [value]
+
+            if alright == True:
+                is_wrong_allocation = False
+            else:
+                presenter = list(names.keys())
+                giving = list(names.keys())
 
         # save all allocation
-        allocations = ""
-        for key, value in names.items():
-            allocations += f"{key}:{value},"
+        #allocations = ""
+        #for key, value in names.items():
+        #    allocations += f"{key}:{value},"
 
-        with open("./secret.txt", "w") as f:
-            f.write(str(fernet.encrypt(allocations.encode()))[2:-1])
+        db['allocations'] = names
+
+        # create empty history file
+        db['history'] = ""
 
         input("\nIt's finished. Press enter to continue.")
 
 
 def remove_access_token():
     if check_master() == True:
-        with open("access_token.txt", "w") as f:
-            f.write(str(fernet.encrypt("".encode()))[2:-1])
+        db['access_token'] = []
 
 
 def show_access_token():
     if check_master() == True:
-        with open("access_token.txt", "r") as f:
-            access_token = f.read()
-        access_token = str(fernet.decrypt(access_token).decode())
-        print(access_token)
+        print(db['access_token'])
+
+
+def show_history():
+    print(db['history'])
+    input("\nDrücke Enter um fortzufahren.")
 
 
 ################
@@ -151,7 +152,8 @@ commands = {
     'new access': lambda: create_access_token(),
     'remove access': lambda: remove_access_token(),
     'show access': lambda: show_access_token(),
-    'exit': lambda: sys.exit()
+    'exit': lambda: sys.exit(),
+    'history': lambda: show_history()
 }
 
 while True:
@@ -160,6 +162,7 @@ while True:
         commands[user_input]()
     else:
         if check_and_take_access_token(user_input) == True:
+            access_token_ = user_input
             allocations = get_allocations()
 
             is_false_name = True
@@ -167,9 +170,10 @@ while True:
                 name = input("Gib deinen Vornamen ein:").lower()
                 if name in allocations.keys():
                     print(
-                        f"Hey {name.title()}, du hast {allocations[name].title()} gezogen. Merke dir die Person gut! Und sag niemanden,wer die gezogene Person ist."
+                        f"Hey {name.title()}, du hast {allocations[name].title()} gezogen.\n\nMerke dir die Person gut! Und sag niemanden,wer die gezogene Person ist."
                     )
-                    input("Du kannst die Website einfach schließen.")
+                    db['history'] += f"\n- {dt.now().day}.{dt.now().month}.{dt.now().year} {dt.now().hour}:{dt.now().minute} Uhr {access_token_} {name.title()}"
+                    input("\nDu kannst die Website einfach schließen.")
                     break
                 else:
                     print(
